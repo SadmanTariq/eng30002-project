@@ -5,6 +5,8 @@ from paho.mqtt.enums import CallbackAPIVersion
 
 from sys import argv
 
+from rsa.pkcs1 import DecryptionError
+
 import config
 
 # If -e is passed in, the data will be encrypted
@@ -42,15 +44,21 @@ def on_message(client, userdata, msg):
     if grid_name not in grids:
         grids[grid_name] = {"generation": 0, "consumption": 0}
 
-    payload = msg.payload
-    if ENCRYPT:
-        payload = decrypt(payload)
-    payload_value = float(payload.split(": ")[-1])
+    try:
+        payload = msg.payload
+        if ENCRYPT:
+            payload = decrypt(payload)
+        else:
+            payload = payload.decode()
 
-    grids[grid_name][value_type] = payload_value
+        payload_value = float(payload.split(": ")[-1])
 
-    # Calculate and publish price
-    client.publish(f"price/{grid_name}", get_price(grids[grid_name]["generation"], grids[grid_name]["consumption"]))
+        grids[grid_name][value_type] = payload_value
+
+        # Calculate and publish price
+        client.publish(f"price/{grid_name}", get_price(grids[grid_name]["generation"], grids[grid_name]["consumption"]))
+    except DecryptionError:
+        print("Failed to decrypt message")
 
 
 def get_price(generation, consumption):
