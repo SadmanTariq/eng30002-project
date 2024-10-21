@@ -2,11 +2,11 @@
 
 PY='./venv/bin/python'
 
-$PY ./grid.py GRID1 1000 1000 > /dev/null &
-$PY ./grid.py GRID2 2000 1000 > /dev/null &
-$PY ./grid.py GRID3 1000 2000 > /dev/null &
-$PY ./grid.py GRID4 5000 200 > /dev/null &
+$PY ./grid.py GRID1 1000 1000 -e > /dev/null &
+$PY ./grid.py GRID2 2000 1000 -e > /dev/null &
+$PY ./grid.py GRID3 1000 2000 -e > /dev/null &
+$PY ./grid.py GRID4 5000 200 -e > /dev/null &
 
-$PY ./controller.py
+$PY ./controller.py -e
 
 kill $(ps -ef | grep python | grep grid.py | awk '{print $2}')

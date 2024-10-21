@@ -1,4 +1,5 @@
 import paho.mqtt.client as mqtt
+import rsa
 from random import uniform
 from time import sleep
 
@@ -8,13 +9,18 @@ from paho.mqtt.enums import CallbackAPIVersion
 
 import config
 
-if len(argv) != 4:
-    print("Usage: python grid.py <name> <mean generation> <mean consumption>")
+if len(argv) < 4:
+    print("Usage: python grid.py <name> <mean generation> <mean consumption> [-e]")
     exit(1)
 
 NAME = argv[1]
 GENERATION = float(argv[2])
 CONSUMPTION = float(argv[3])
+
+# If the last argument is -e, the data will be encrypted
+ENCRYPT = len(argv) >= 5 and argv[4] == "-e"
+
+pubkey = rsa.PublicKey.load_pkcs1_openssl_pem(config.PUBLIC_KEY)
 
 
 # The callback for when the client receives a CONNACK response from the server.
@@ -43,12 +49,29 @@ def get_random(v: float):
     return v * uniform(0.9, 1.1)
 
 
-while True:
-    mqttc.publish(f"grid/{NAME}/generation", get_random(GENERATION))
-    mqttc.publish(f"grid/{NAME}/consumption", get_random(CONSUMPTION))
+def encrypt(data: str):
+    return rsa.encrypt(data.encode(), pubkey)
 
-    print(f"grid/{NAME}/generation", get_random(GENERATION))
-    print(f"grid/{NAME}/consumption", get_random(CONSUMPTION))
+
+def generate_payload():
+    data = [
+        f"generation: {get_random(GENERATION)}",
+        f"consumption: {get_random(CONSUMPTION)}"
+    ]
+
+    if ENCRYPT:
+        data = [encrypt(d) for d in data]
+
+    return data
+
+
+while True:
+    generation, consumption = generate_payload()
+    mqttc.publish(f"grid/{NAME}/generation", generation)
+    mqttc.publish(f"grid/{NAME}/consumption", consumption)
+
+    print(f"grid/{NAME}/generation", generation)
+    print(f"grid/{NAME}/consumption", consumption)
 
     # Sleep for 5 seconds with a random factor
     sleep(uniform(0.9, 1.1) * 5)
